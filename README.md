@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Outfit Copilot
 
-## Getting Started
+AI virtual try-on. Shoppers upload a photo (or pick an avatar) and see a
+photorealistic preview of themselves wearing catalog items. Stores add their own
+catalog and embed a try-on widget on their product pages.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** (App Router, Turbopack, React 19)
+- **Neon** Postgres (`@neondatabase/serverless`)
+- **OpenAI** `gpt-image-1` (try-on edits + avatar generation)
+- **Cloudinary** image hosting
+- Hand-rolled email/password auth (Node `scrypt`) + optional Google OAuth
+- Tailwind v4
+
+## Setup
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in the values (see .env.local comments)
+npm run db:migrate           # idempotent: creates tables + seeds the demo catalog
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Required env: `DATABASE_URL`, `OPENAI_API_KEY`, `CLOUDINARY_*`. Everything else is
+optional — see `.env.local`, where every key has a comment explaining what it's
+for and where to get it.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Feature map
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Onboarding**: email/password + Google login; guest use (anonymous cookie)
+- **Photo or avatar**: upload a photo (camera capture on mobile) or pick from 6
+  avatar presets, with optional body details
+- **Catalog**: search + category filter; try on your own wardrobe item; per-store
+  catalogs with CSV or Shopify import
+- **Try-on**: multi-image edit (real garment photo) or text; "change color" refine
+- **Result actions**: favorite, share (Web Share API), "View details / Buy" link
+- **Gallery**: saved try-ons per account/device, with delete-all
+- **Widget**: `/widget/[slug]` embeddable per store (copy-paste snippet in dashboard)
+- **Billing**: Stripe subscriptions with per-plan monthly try-on quota enforcement
+- **Analytics**: GA4 + Mixpanel events (try_on_started/completed, share, buy_click)
+- **Privacy**: consent copy, data deletion, `/privacy` + `/terms`, mobile tab bar
 
-## Learn More
+## Optional integrations (code built; add keys to enable)
 
-To learn more about Next.js, take a look at the following resources:
+Turn on when their env vars are set: **Stripe** (`STRIPE_*`), **Google login**
+(`GOOGLE_CLIENT_*`), **Analytics** (`NEXT_PUBLIC_GA_ID` / `NEXT_PUBLIC_MIXPANEL_TOKEN`),
+**Email** (`RESEND_API_KEY` / `EMAIL_FROM`). **Shopify import** needs no env key —
+store owners paste their domain + Admin token in the dashboard.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Data model (`src/lib/schema.sql`)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `users`, `auth_sessions` — auth
+- `stores` — multi-tenant; each user can own several (plan, Stripe ids)
+- `garments` — catalog; `store_id NULL` = built-in demo catalog; has photo + product url
+- `try_ons` — one row per generation (session/user/store, Cloudinary URLs, favorite,
+  denormalized garment name/category so ad-hoc "wardrobe" try-ons still label)
 
-## Deploy on Vercel
+Re-run `npm run db:migrate` anytime — it's idempotent.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Not built (non-code)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The spec's business-plan sections — team hiring, GTM, competitor analysis, KPI
+targets, cost tables — are strategy, not code.
+
+## Known limitations
+
+- No rate limiting on `/api/try-on` beyond the per-store monthly quota — each call
+  costs OpenAI + Cloudinary usage.
+- Try-on latency is model-bound (~10–30s), above the spec's <5s aspiration.
