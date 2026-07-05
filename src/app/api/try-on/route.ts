@@ -5,14 +5,27 @@ import {
   getStoreById,
   insertTryOn,
   countStoreTryOnsThisMonth,
+  countRecentTryOns,
 } from "@/lib/db";
 import { generateTryOn } from "@/lib/openai";
 import { uploadImage } from "@/lib/cloudinary";
 import { getCurrentUser, getOrCreateAnonSession } from "@/lib/auth";
-import { PLANS } from "@/lib/plans";
+import {
+  PLANS,
+  FREE_TRYON_LIMIT,
+  FREE_TRYON_WINDOW_HOURS,
+  MAX_IMAGE_BYTES,
+} from "@/lib/plans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+/** Approximate the decoded byte size of a base64 data URL without decoding it. */
+function dataUrlBytes(dataUrl: string): number {
+  const comma = dataUrl.indexOf(",");
+  const b64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+  return Math.floor((b64.length * 3) / 4);
+}
 
 type TryOnRequestBody = {
   personImage?: string;
@@ -37,6 +50,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "personImage must be a base64 image data URL" },
       { status: 400 }
+    );
+  }
+
+  // Reject oversized uploads before spending an AI call on them.
+  if (
+    dataUrlBytes(personImage) > MAX_IMAGE_BYTES ||
+    (customGarment?.photo &&
+      customGarment.photo.startsWith("data:image/") &&
+      dataUrlBytes(customGarment.photo) > MAX_IMAGE_BYTES)
+  ) {
+    return NextResponse.json(
+      { error: "Image is too large. Please use a photo under 15 MB." },
+      { status: 413 }
     );
   }
 
@@ -101,6 +127,27 @@ export async function POST(request: NextRequest) {
 
   const user = await getCurrentUser();
   const sessionId = await getOrCreateAnonSession();
+
+  // Free-tier abuse guard: try-ons not billed to a store's monthly quota (the
+  // public demo catalog and custom wardrobe uploads) are capped per shopper
+  // over a rolling window so the AI endpoint can't be run up anonymously.
+  if (!storeId) {
+    const since = new Date(
+      Date.now() - FREE_TRYON_WINDOW_HOURS * 60 * 60 * 1000
+    ).toISOString();
+    const recent = await countRecentTryOns(
+      { sessionId, userId: user?.id ?? null },
+      since
+    );
+    if (recent >= FREE_TRYON_LIMIT) {
+      return NextResponse.json(
+        {
+          error: `You've reached the free limit of ${FREE_TRYON_LIMIT} try-ons per day. Add a store plan for higher limits.`,
+        },
+        { status: 429 }
+      );
+    }
+  }
 
   try {
     const resultDataUrl = await generateTryOn(

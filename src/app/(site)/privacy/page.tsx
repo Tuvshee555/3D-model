@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const metadata = { title: "Privacy — Outfit Copilot" };
 
 export default function PrivacyPage() {
@@ -20,7 +22,9 @@ export default function PrivacyPage() {
       <p>
         <strong>Deleting your data.</strong> You can delete all of your try-ons at
         any time from the <a className="text-[var(--color-primary)] underline-offset-2 hover:underline" href="/gallery">gallery</a>{" "}
-        page. This removes the database records for your try-ons.
+        page. If you have an account, you can also permanently delete the whole
+        account — including your stores, catalog items, and saved try-ons — from
+        your <Link className="text-[var(--color-primary)] underline-offset-2 hover:underline" href="/dashboard">dashboard</Link>.
       </p>
       <p>
         <strong>AI-generated content.</strong> Previews are computer-generated and

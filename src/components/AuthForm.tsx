@@ -84,6 +84,34 @@ export function AuthForm({ mode, action, googleEnabled }: Props) {
             />
           </label>
 
+          {mode === "signup" && (
+            <label className="flex items-start gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+              <input
+                name="consent"
+                type="checkbox"
+                required
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-primary)]"
+              />
+              <span>
+                I&apos;m 13 or older and agree to the{" "}
+                <Link
+                  href="/terms"
+                  className="text-[var(--color-primary)] underline-offset-2 hover:underline"
+                >
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/privacy"
+                  className="text-[var(--color-primary)] underline-offset-2 hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+                , including AI processing of photos I upload.
+              </span>
+            </label>
+          )}
+
           {state?.error && (
             <p className="text-sm text-red-600">{state.error}</p>
           )}

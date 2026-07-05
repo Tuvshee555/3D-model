@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getStoresByUser } from "@/lib/db";
 import { createStoreAction } from "@/app/actions/stores";
+import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { PLANS } from "@/lib/plans";
 
 export default async function DashboardPage() {
@@ -67,6 +68,19 @@ export default async function DashboardPage() {
           Create store
         </button>
       </form>
+
+      <details className="rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+        <summary className="cursor-pointer text-sm font-medium text-zinc-600 dark:text-zinc-400">
+          Privacy &amp; account
+        </summary>
+        <p className="mt-3 text-sm text-zinc-500">
+          Deleting your account permanently removes your stores, catalog items,
+          and saved try-ons. This cannot be undone.
+        </p>
+        <div className="mt-4">
+          <DeleteAccountButton />
+        </div>
+      </details>
     </div>
   );
 }

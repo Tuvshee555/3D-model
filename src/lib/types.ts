@@ -1,4 +1,17 @@
-export type GarmentCategory = "top" | "dress" | "outerwear";
+export type GarmentCategory =
+  | "top"
+  | "bottom"
+  | "dress"
+  | "outerwear"
+  | "accessory";
+
+export const GARMENT_CATEGORIES: GarmentCategory[] = [
+  "top",
+  "bottom",
+  "dress",
+  "outerwear",
+  "accessory",
+];
 
 export type Garment = {
   id: string;

@@ -49,3 +49,13 @@ export const PLANS: Record<string, Plan> = {
 };
 
 export const PLAN_ORDER = ["free", "starter", "growth"] as const;
+
+// Abuse/cost guard for try-ons that aren't billed to a store's monthly quota —
+// i.e. the public demo catalog and custom wardrobe uploads. Without this, the
+// gpt-image-1 endpoint (real money per call) is uncapped for anonymous users.
+// Rolling window, counted per browser session and/or logged-in user.
+export const FREE_TRYON_WINDOW_HOURS = 24;
+export const FREE_TRYON_LIMIT = 20;
+
+// Reject oversized uploads before they ever reach the AI provider (decoded bytes).
+export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;

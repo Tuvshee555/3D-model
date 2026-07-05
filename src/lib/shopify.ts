@@ -46,14 +46,38 @@ type ProductsResponse = {
 
 function mapCategory(productType: string): string {
   const t = productType.toLowerCase();
-  if (t.includes("dress")) return "dress";
+  if (t.includes("dress") || t.includes("gown")) return "dress";
   if (
     t.includes("coat") ||
     t.includes("jacket") ||
     t.includes("outer") ||
-    t.includes("blazer")
+    t.includes("blazer") ||
+    t.includes("parka")
   )
     return "outerwear";
+  if (
+    t.includes("pant") ||
+    t.includes("trouser") ||
+    t.includes("jean") ||
+    t.includes("short") ||
+    t.includes("skirt") ||
+    t.includes("legging") ||
+    t.includes("bottom")
+  )
+    return "bottom";
+  if (
+    t.includes("hat") ||
+    t.includes("cap") ||
+    t.includes("scarf") ||
+    t.includes("bag") ||
+    t.includes("belt") ||
+    t.includes("glasses") ||
+    t.includes("sunglass") ||
+    t.includes("jewel") ||
+    t.includes("necklace") ||
+    t.includes("accessor")
+  )
+    return "accessory";
   return "top";
 }
 

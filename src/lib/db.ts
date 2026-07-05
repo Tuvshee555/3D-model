@@ -65,6 +65,17 @@ export async function deleteAuthSession(token: string): Promise<void> {
   await getSql()`DELETE FROM auth_sessions WHERE token = ${token}`;
 }
 
+/**
+ * GDPR right-to-erasure: delete the account and everything it owns.
+ * try_ons.user_id is ON DELETE SET NULL, so remove the owner's try-ons first;
+ * the user's stores (and their garments/try-ons) plus auth sessions then
+ * cascade away with the users row.
+ */
+export async function deleteUserAccount(userId: string): Promise<void> {
+  await getSql()`DELETE FROM try_ons WHERE user_id = ${userId}`;
+  await getSql()`DELETE FROM users WHERE id = ${userId}`;
+}
+
 /* ---------- Stores ---------- */
 
 export async function createStore(store: {
@@ -212,6 +223,28 @@ export async function createGarments(
     inserted += 1;
   }
   return inserted;
+}
+
+/**
+ * Count a shopper's try-ons since a timestamp — the free-tier abuse guard for
+ * generations that aren't billed to a store quota. Matched per browser session
+ * and, if signed in, per user.
+ */
+export async function countRecentTryOns(
+  scope: { sessionId: string; userId: string | null },
+  sinceIso: string
+): Promise<number> {
+  const rows = scope.userId
+    ? await getSql()`
+        SELECT count(*)::int AS n FROM try_ons
+        WHERE created_at >= ${sinceIso}
+          AND (user_id = ${scope.userId} OR session_id = ${scope.sessionId})
+      `
+    : await getSql()`
+        SELECT count(*)::int AS n FROM try_ons
+        WHERE created_at >= ${sinceIso} AND session_id = ${scope.sessionId}
+      `;
+  return (rows[0] as { n: number }).n;
 }
 
 /** Count try-ons for a store in the current calendar month (for quota checks). */

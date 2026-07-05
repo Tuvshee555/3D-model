@@ -65,7 +65,13 @@ export function csvToGarments(rows: string[][]): CsvGarmentRow[] {
   const iPhoto = idx(["photo_url", "image", "image_url", "photo"]);
   const iUrl = idx(["product_url", "url", "link"]);
 
-  const valid = new Set(["top", "dress", "outerwear"]);
+  const valid = new Set([
+    "top",
+    "bottom",
+    "dress",
+    "outerwear",
+    "accessory",
+  ]);
 
   return rows
     .slice(1)

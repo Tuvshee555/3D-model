@@ -1,7 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Garment, GarmentCategory, Selection } from "@/lib/types";
+import {
+  GARMENT_CATEGORIES,
+  type Garment,
+  type GarmentCategory,
+  type Selection,
+} from "@/lib/types";
 
 type Props = {
   garments: Garment[];
@@ -10,12 +15,7 @@ type Props = {
   onBack: () => void;
 };
 
-const CATEGORIES: (GarmentCategory | "all")[] = [
-  "all",
-  "top",
-  "dress",
-  "outerwear",
-];
+const CATEGORIES: (GarmentCategory | "all")[] = ["all", ...GARMENT_CATEGORIES];
 
 export function CatalogStep({
   garments,
@@ -34,7 +34,13 @@ export function CatalogStep({
     const q = query.trim().toLowerCase();
     return garments.filter((g) => {
       if (category !== "all" && g.category !== category) return false;
-      if (q && !g.name.toLowerCase().includes(q)) return false;
+      if (
+        q &&
+        !g.name.toLowerCase().includes(q) &&
+        !g.description.toLowerCase().includes(q) &&
+        !g.category.toLowerCase().includes(q)
+      )
+        return false;
       return true;
     });
   }, [garments, category, query]);

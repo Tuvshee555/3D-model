@@ -66,8 +66,10 @@ export function GarmentForm({ storeId }: { storeId: string }) {
             className="rounded-lg border border-zinc-300 bg-transparent px-3 py-2 outline-none focus:border-[var(--color-primary)] dark:border-zinc-700"
           >
             <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
             <option value="dress">Dress</option>
             <option value="outerwear">Outerwear</option>
+            <option value="accessory">Accessory</option>
           </select>
         </label>
       </div>

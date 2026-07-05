@@ -2,9 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { randomUUID } from "node:crypto";
-import { createUser, getUserByEmail } from "@/lib/db";
+import { createUser, getUserByEmail, deleteUserAccount } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import { startSession, endSession } from "@/lib/auth";
+import { startSession, endSession, getCurrentUser } from "@/lib/auth";
 import { sendWelcomeEmail } from "@/lib/email";
 
 export type AuthState = { error: string } | null;
@@ -25,6 +25,13 @@ export async function signupAction(
   }
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
+  }
+  // Consent + age gate (13+, COPPA) — required for image processing.
+  if (formData.get("consent") !== "on") {
+    return {
+      error:
+        "Please confirm you're 13+ and agree to the Terms and Privacy Policy.",
+    };
   }
 
   const existing = await getUserByEmail(email);
@@ -57,6 +64,15 @@ export async function loginAction(
 }
 
 export async function logoutAction(): Promise<void> {
+  await endSession();
+  redirect("/");
+}
+
+/** GDPR erasure: permanently delete the signed-in user and all their data. */
+export async function deleteAccountAction(): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  await deleteUserAccount(user.id);
   await endSession();
   redirect("/");
 }
