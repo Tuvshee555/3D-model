@@ -144,6 +144,16 @@ CREATE INDEX IF NOT EXISTS billing_invoices_store_id_idx ON billing_invoices (st
 CREATE INDEX IF NOT EXISTS billing_invoices_provider_ref_idx
   ON billing_invoices (provider, provider_ref);
 
+-- Atomic rate-limit counters (Bible §8): one row per (scope × time bucket). The
+-- reservation is a single conditional upsert-increment, so parallel requests
+-- serialize on the row lock and can't all pass a read-then-write check on the
+-- expensive try-on endpoint.
+CREATE TABLE IF NOT EXISTS rate_counters (
+  rate_key TEXT PRIMARY KEY,
+  count INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Seed the built-in sample catalog (store_id stays NULL). ~50 items across all
 -- five categories so the demo is searchable/filterable out of the box.
 INSERT INTO garments (id, name, category, swatch, description) VALUES

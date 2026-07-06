@@ -4,19 +4,14 @@ import {
   getGarmentById,
   getStoreById,
   insertTryOn,
-  countStoreTryOnsThisMonth,
-  countRecentTryOns,
+  reserveRateSlot,
+  releaseRateSlot,
 } from "@/lib/db";
 import { runTryOn } from "@/lib/tryon";
 import { moderateImage } from "@/lib/moderation";
 import { uploadImageDetailed } from "@/lib/cloudinary";
 import { getCurrentUser, getOrCreateAnonSession } from "@/lib/auth";
-import {
-  PLANS,
-  FREE_TRYON_LIMIT,
-  FREE_TRYON_WINDOW_HOURS,
-  MAX_IMAGE_BYTES,
-} from "@/lib/plans";
+import { PLANS, FREE_TRYON_LIMIT, MAX_IMAGE_BYTES } from "@/lib/plans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -90,21 +85,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unknown garmentId" }, { status: 400 });
     }
 
-    // Enforce the store's monthly quota (store-owned garments only).
-    if (garment.storeId) {
-      const store = await getStoreById(garment.storeId);
-      const plan = PLANS[store?.plan ?? "free"] ?? PLANS.free;
-      const used = await countStoreTryOnsThisMonth(garment.storeId);
-      if (used >= plan.tryOnsPerMonth) {
-        return NextResponse.json(
-          {
-            error: `This store has reached its monthly try-on limit (${plan.tryOnsPerMonth}). Upgrade the plan to continue.`,
-          },
-          { status: 402 }
-        );
-      }
-    }
-
     description = garment.description;
     referencePhoto = garment.photoUrl;
     resolvedGarmentId = garment.id;
@@ -134,27 +114,6 @@ export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
   const sessionId = await getOrCreateAnonSession();
 
-  // Free-tier abuse guard: try-ons not billed to a store's monthly quota (the
-  // public demo catalog and custom wardrobe uploads) are capped per shopper
-  // over a rolling window so the AI endpoint can't be run up anonymously.
-  if (!storeId) {
-    const since = new Date(
-      Date.now() - FREE_TRYON_WINDOW_HOURS * 60 * 60 * 1000
-    ).toISOString();
-    const recent = await countRecentTryOns(
-      { sessionId, userId: user?.id ?? null },
-      since
-    );
-    if (recent >= FREE_TRYON_LIMIT) {
-      return NextResponse.json(
-        {
-          error: `You've reached the free limit of ${FREE_TRYON_LIMIT} try-ons per day. Add a store plan for higher limits.`,
-        },
-        { status: 429 }
-      );
-    }
-  }
-
   // Moderation guard: screen the photo before spending an AI call (Bible §1.1).
   const moderation = await moderateImage(personImage);
   if (moderation.flagged) {
@@ -167,10 +126,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Atomic rate reservation (Bible §8) — unify shopper (free, per-day) and
+  // merchant (per-store, per-month) metering into one race-free path. Reserved
+  // before generation; refunded below on a cache hit or a failed generation.
+  const now = new Date();
+  let rateKey: string;
+  if (storeId) {
+    const store = await getStoreById(storeId);
+    const plan = PLANS[store?.plan ?? "free"] ?? PLANS.free;
+    rateKey = `store:${storeId}:${now.getUTCFullYear()}-${now.getUTCMonth() + 1}`;
+    if (!(await reserveRateSlot(rateKey, plan.tryOnsPerMonth))) {
+      return NextResponse.json(
+        {
+          error: `This store has reached its monthly try-on limit (${plan.tryOnsPerMonth}). Upgrade the plan to continue.`,
+        },
+        { status: 402 }
+      );
+    }
+  } else {
+    rateKey = `free:${user?.id ?? sessionId}:${now.toISOString().slice(0, 10)}`;
+    if (!(await reserveRateSlot(rateKey, FREE_TRYON_LIMIT))) {
+      return NextResponse.json(
+        {
+          error: `You've reached the free limit of ${FREE_TRYON_LIMIT} try-ons per day. Add a store plan for higher limits.`,
+        },
+        { status: 429 }
+      );
+    }
+  }
+
   try {
     // runTryOn owns the result upload + cache; person image is uploaded in
     // parallel since it doesn't depend on the generation.
-    const [{ resultUrl: resultImageUrl }, person] = await Promise.all([
+    const [{ resultUrl: resultImageUrl, cached }, person] = await Promise.all([
       runTryOn(
         {
           personPhoto: personImage,
@@ -186,6 +174,9 @@ export async function POST(request: NextRequest) {
       ),
       uploadImageDetailed(personImage, "tryon/person"),
     ]);
+
+    // A cache hit cost nothing — refund the reserved slot.
+    if (cached) await releaseRateSlot(rateKey).catch(() => {});
 
     const tryOnId = randomUUID();
     await insertTryOn({
@@ -207,6 +198,8 @@ export async function POST(request: NextRequest) {
       productUrl,
     });
   } catch (error) {
+    // A failed generation shouldn't consume a rate slot.
+    await releaseRateSlot(rateKey).catch(() => {});
     const message = error instanceof Error ? error.message : "Generation failed";
     const status = message.includes("is not set") ? 501 : 502;
     return NextResponse.json({ error: message }, { status });

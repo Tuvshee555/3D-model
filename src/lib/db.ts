@@ -389,6 +389,39 @@ export async function putCachedGeneration(row: {
   `;
 }
 
+/* ---------- Rate limiting (atomic reservation) ---------- */
+
+/**
+ * Atomically reserve one slot under a limit (Bible §8). A single conditional
+ * upsert-increment: concurrent requests serialize on the row lock, so no more
+ * than `limit` can ever pass. Returns true if a slot was reserved, false if at
+ * the limit.
+ */
+export async function reserveRateSlot(
+  rateKey: string,
+  limit: number
+): Promise<boolean> {
+  if (limit <= 0) return false;
+  const rows = await getSql()`
+    INSERT INTO rate_counters (rate_key, count)
+    VALUES (${rateKey}, 1)
+    ON CONFLICT (rate_key) DO UPDATE
+      SET count = rate_counters.count + 1, updated_at = now()
+      WHERE rate_counters.count < ${limit}
+    RETURNING count
+  `;
+  return rows.length > 0;
+}
+
+/** Release a reserved slot (e.g. a cache hit or a failed generation). */
+export async function releaseRateSlot(rateKey: string): Promise<void> {
+  await getSql()`
+    UPDATE rate_counters
+    SET count = GREATEST(count - 1, 0), updated_at = now()
+    WHERE rate_key = ${rateKey}
+  `;
+}
+
 /* ---------- Try-ons ---------- */
 
 export async function insertTryOn(entry: {
