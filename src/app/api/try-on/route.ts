@@ -200,8 +200,18 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     // A failed generation shouldn't consume a rate slot.
     await releaseRateSlot(rateKey).catch(() => {});
-    const message = error instanceof Error ? error.message : "Generation failed";
-    const status = message.includes("is not set") ? 501 : 502;
-    return NextResponse.json({ error: message }, { status });
+    // Log the real error server-side; never leak provider internals to users
+    // (Bible §8: no raw error strings to users).
+    console.error("try-on generation failed:", error);
+    const raw = error instanceof Error ? error.message : "";
+    const notConfigured = raw.includes("is not set");
+    return NextResponse.json(
+      {
+        error: notConfigured
+          ? "Try-on isn't available right now. Please try again later."
+          : "We couldn't create your preview this time. Please try again.",
+      },
+      { status: notConfigured ? 503 : 502 }
+    );
   }
 }
