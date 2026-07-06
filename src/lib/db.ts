@@ -123,30 +123,93 @@ export async function slugExists(slug: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-export async function updateStorePlan(
+/**
+ * Provider-agnostic plan mutation. The billing_provider / customer / subscription
+ * ids are whatever the active BillingProvider issued — no column is Stripe- or
+ * QPay-specific. This is the only place a store's plan changes for billing.
+ */
+export async function updateStoreBilling(
   storeId: string,
-  plan: string,
-  stripeCustomerId: string | null,
-  stripeSubscriptionId: string | null
+  billing: {
+    plan: string;
+    provider: string | null;
+    customerId: string | null;
+    subscriptionId: string | null;
+  }
 ): Promise<void> {
   await getSql()`
     UPDATE stores
-    SET plan = ${plan},
-        stripe_customer_id = ${stripeCustomerId},
-        stripe_subscription_id = ${stripeSubscriptionId}
+    SET plan = ${billing.plan},
+        billing_provider = ${billing.provider},
+        billing_customer_id = ${billing.customerId},
+        billing_subscription_id = ${billing.subscriptionId}
     WHERE id = ${storeId}
   `;
 }
 
-export async function getStoreByStripeCustomer(
+export async function getStoreByBillingCustomer(
+  provider: string,
   customerId: string
 ): Promise<Store | undefined> {
   const rows = await getSql()`
     SELECT id, user_id AS "userId", name, slug, plan, created_at AS "createdAt"
     FROM stores
-    WHERE stripe_customer_id = ${customerId}
+    WHERE billing_provider = ${provider} AND billing_customer_id = ${customerId}
   `;
   return rows[0] as Store | undefined;
+}
+
+/* ---------- Billing invoices (provider-agnostic ledger) ---------- */
+
+export type BillingInvoice = {
+  id: string;
+  storeId: string;
+  planId: string;
+  provider: string;
+  providerRef: string | null;
+  amount: number | null;
+  currency: string | null;
+  status: string; // 'pending' | 'paid' | 'canceled'
+};
+
+export async function createBillingInvoice(inv: {
+  id: string;
+  storeId: string;
+  planId: string;
+  provider: string;
+  amount: number | null;
+  currency: string | null;
+}): Promise<void> {
+  await getSql()`
+    INSERT INTO billing_invoices (id, store_id, plan_id, provider, amount, currency, status)
+    VALUES (${inv.id}, ${inv.storeId}, ${inv.planId}, ${inv.provider}, ${inv.amount}, ${inv.currency}, 'pending')
+  `;
+}
+
+export async function setBillingInvoiceRef(
+  id: string,
+  providerRef: string
+): Promise<void> {
+  await getSql()`UPDATE billing_invoices SET provider_ref = ${providerRef} WHERE id = ${id}`;
+}
+
+export async function setBillingInvoiceStatus(
+  id: string,
+  status: string
+): Promise<void> {
+  await getSql()`UPDATE billing_invoices SET status = ${status} WHERE id = ${id}`;
+}
+
+export async function getBillingInvoice(
+  id: string
+): Promise<BillingInvoice | undefined> {
+  const rows = await getSql()`
+    SELECT id, store_id AS "storeId", plan_id AS "planId", provider,
+           provider_ref AS "providerRef", amount::float AS amount, currency, status
+    FROM billing_invoices
+    WHERE id = ${id}
+  `;
+  return rows[0] as BillingInvoice | undefined;
 }
 
 /* ---------- Garments ---------- */

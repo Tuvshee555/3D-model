@@ -1,4 +1,4 @@
-import { appUrl } from "./stripe";
+import { appUrl } from "./urls";
 
 export function googleEnabled(): boolean {
   return Boolean(

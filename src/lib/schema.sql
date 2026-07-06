@@ -30,6 +30,16 @@ CREATE TABLE IF NOT EXISTS stores (
 
 CREATE INDEX IF NOT EXISTS stores_user_id_idx ON stores (user_id);
 
+-- Provider-agnostic billing columns (the stripe_* columns above are legacy and
+-- unused now that billing goes through the BillingProvider seam). `provider` is
+-- 'qpay' | 'stripe'; customer/subscription ids are whatever that provider issues.
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS billing_provider TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS billing_customer_id TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS billing_subscription_id TEXT;
+
+CREATE INDEX IF NOT EXISTS stores_billing_customer_idx
+  ON stores (billing_provider, billing_customer_id);
+
 -- Garments (catalog). store_id NULL = the built-in sample/demo catalog.
 CREATE TABLE IF NOT EXISTS garments (
   id TEXT PRIMARY KEY,
@@ -113,6 +123,26 @@ CREATE TABLE IF NOT EXISTS generation_cache (
 );
 
 CREATE INDEX IF NOT EXISTS generation_cache_created_at_idx ON generation_cache (created_at);
+
+-- Billing invoices — a provider-agnostic ledger row per checkout attempt. Both
+-- providers echo the row id back (QPay via sender_invoice_no + callback param,
+-- Stripe via metadata) so a payment reconciles to exactly one store + plan.
+-- provider_ref = the provider-side id (QPay invoice_id / Stripe session id).
+CREATE TABLE IF NOT EXISTS billing_invoices (
+  id UUID PRIMARY KEY,
+  store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  plan_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  provider_ref TEXT,
+  amount NUMERIC,
+  currency TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS billing_invoices_store_id_idx ON billing_invoices (store_id);
+CREATE INDEX IF NOT EXISTS billing_invoices_provider_ref_idx
+  ON billing_invoices (provider, provider_ref);
 
 -- Seed the built-in sample catalog (store_id stays NULL). ~50 items across all
 -- five categories so the demo is searchable/filterable out of the box.

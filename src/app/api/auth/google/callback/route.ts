@@ -5,7 +5,7 @@ import { getGoogleEmail } from "@/lib/google";
 import { createUser, getUserByEmail } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { startSession } from "@/lib/auth";
-import { appUrl } from "@/lib/stripe";
+import { appUrl } from "@/lib/urls";
 
 export const runtime = "nodejs";
 

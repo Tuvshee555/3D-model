@@ -17,7 +17,9 @@ const schemaPath = path.join(
   "lib",
   "schema.sql"
 );
-const schema = readFileSync(schemaPath, "utf8");
+// Normalize CRLF/CR to LF first — otherwise `.*` won't consume the trailing \r
+// and a `-- ...; ...` comment leaks its semicolon into the statement split.
+const schema = readFileSync(schemaPath, "utf8").replace(/\r\n?/g, "\n");
 
 // Strip full-line and trailing `-- ...` comments so semicolons inside comments
 // don't break the naive split on ";".
