@@ -21,5 +21,9 @@ export function estimateGenerationCostUsd(
   if (model === "gpt-image-1") {
     return OPENAI_IMAGE_COST_USD[size ?? "default"] ?? OPENAI_IMAGE_COST_USD.default;
   }
+  // fal.ai IDM-VTON — approximate per-run price; calibrate against fal invoices.
+  if (model === "fal-ai/idm-vton") {
+    return 0.05;
+  }
   return null;
 }

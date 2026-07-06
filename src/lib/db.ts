@@ -301,13 +301,15 @@ export async function insertGeneration(g: {
 /** Look up a cached result by content-hash key. Provider is baked into the key. */
 export async function getCachedGeneration(
   cacheKey: string
-): Promise<{ resultUrl: string; model: string } | undefined> {
+): Promise<{ resultUrl: string; provider: string; model: string } | undefined> {
   const rows = await getSql()`
-    SELECT result_url AS "resultUrl", model
+    SELECT result_url AS "resultUrl", provider, model
     FROM generation_cache
     WHERE cache_key = ${cacheKey}
   `;
-  return rows[0] as { resultUrl: string; model: string } | undefined;
+  return rows[0] as
+    | { resultUrl: string; provider: string; model: string }
+    | undefined;
 }
 
 /** Store a result under its content-hash key. No-op if another request won the race. */
