@@ -270,6 +270,32 @@ export async function deleteGarment(
   `;
 }
 
+/* ---------- Generation telemetry ---------- */
+
+/** Record one AI generation (cost/latency/outcome). See schema `generations`. */
+export async function insertGeneration(g: {
+  id: string;
+  kind: string;
+  provider: string;
+  model: string;
+  sessionId: string | null;
+  userId: string | null;
+  storeId: string | null;
+  garmentId: string | null;
+  outcome: string;
+  error: string | null;
+  latencyMs: number;
+  costUsd: number | null;
+}): Promise<void> {
+  await getSql()`
+    INSERT INTO generations (id, kind, provider, model, session_id, user_id,
+                             store_id, garment_id, outcome, error, latency_ms, cost_usd)
+    VALUES (${g.id}, ${g.kind}, ${g.provider}, ${g.model}, ${g.sessionId},
+            ${g.userId}, ${g.storeId}, ${g.garmentId}, ${g.outcome}, ${g.error},
+            ${g.latencyMs}, ${g.costUsd})
+  `;
+}
+
 /* ---------- Try-ons ---------- */
 
 export async function insertTryOn(entry: {

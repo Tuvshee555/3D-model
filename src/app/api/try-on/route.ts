@@ -7,7 +7,7 @@ import {
   countStoreTryOnsThisMonth,
   countRecentTryOns,
 } from "@/lib/db";
-import { generateTryOn } from "@/lib/openai";
+import { runTryOn } from "@/lib/tryon";
 import { uploadImage } from "@/lib/cloudinary";
 import { getCurrentUser, getOrCreateAnonSession } from "@/lib/auth";
 import {
@@ -150,10 +150,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const resultDataUrl = await generateTryOn(
-      personImage,
-      finalDescription,
-      finalReference
+    const resultDataUrl = await runTryOn(
+      {
+        personPhoto: personImage,
+        garmentDescription: finalDescription,
+        garmentPhoto: finalReference,
+      },
+      {
+        sessionId,
+        userId: user?.id ?? null,
+        storeId,
+        garmentId: resolvedGarmentId,
+      }
     );
 
     const [personImageUrl, resultImageUrl] = await Promise.all([

@@ -73,6 +73,30 @@ CREATE INDEX IF NOT EXISTS try_ons_session_id_idx ON try_ons (session_id);
 CREATE INDEX IF NOT EXISTS try_ons_user_id_idx ON try_ons (user_id);
 CREATE INDEX IF NOT EXISTS try_ons_store_id_idx ON try_ons (store_id);
 
+-- Generation telemetry — one row per AI generation (Bible §1.3 / §8): never fly
+-- blind on COGS. Records model, latency, outcome, and estimated cost so we can
+-- price above cost and debug the pipeline. garment_id stays FK-free (custom
+-- wardrobe items have no catalog garment).
+CREATE TABLE IF NOT EXISTS generations (
+  id UUID PRIMARY KEY,
+  kind TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  session_id TEXT,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  store_id UUID REFERENCES stores(id) ON DELETE SET NULL,
+  garment_id TEXT,
+  outcome TEXT NOT NULL,
+  error TEXT,
+  latency_ms INTEGER NOT NULL,
+  cost_usd NUMERIC,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS generations_created_at_idx ON generations (created_at);
+CREATE INDEX IF NOT EXISTS generations_store_id_idx ON generations (store_id);
+CREATE INDEX IF NOT EXISTS generations_outcome_idx ON generations (outcome);
+
 -- Seed the built-in sample catalog (store_id stays NULL). ~50 items across all
 -- five categories so the demo is searchable/filterable out of the box.
 INSERT INTO garments (id, name, category, swatch, description) VALUES

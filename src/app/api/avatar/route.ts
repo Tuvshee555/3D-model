@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAvatar } from "@/lib/avatars";
-import { generateAvatarBase } from "@/lib/openai";
+import { runAvatar } from "@/lib/tryon";
+import { getCurrentUser, getOrCreateAnonSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -24,7 +25,12 @@ export async function POST(request: NextRequest) {
     : avatar.description;
 
   try {
-    const image = await generateAvatarBase(description);
+    const user = await getCurrentUser();
+    const sessionId = await getOrCreateAnonSession();
+    const image = await runAvatar(
+      { description },
+      { sessionId, userId: user?.id ?? null, storeId: null, garmentId: null }
+    );
     return NextResponse.json({ image });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Generation failed";
