@@ -1,15 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { CameraIcon } from "@/components/icons";
 
 type Props = {
-  onContinue: (photoDataUrl: string) => void;
+  onContinue: (photoDataUrl: string, consent: boolean) => void;
 };
 
 export function UploadStep({ onContinue }: Props) {
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [consent, setConsent] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFile(file: File | undefined) {
@@ -72,19 +74,36 @@ export function UploadStep({ onContinue }: Props) {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
+      <label className="flex max-w-xs items-start gap-2 text-left text-xs text-zinc-500">
+        <input
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-primary)]"
+        />
+        <span>
+          I&apos;m 13+ and agree my photo may be used to generate my try-on. It
+          stays private and is auto-deleted within 24 hours unless I save it. See
+          our{" "}
+          <Link href="/terms" className="underline underline-offset-2">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="underline underline-offset-2">
+            Privacy Policy
+          </Link>
+          .
+        </span>
+      </label>
+
       <button
         type="button"
-        disabled={!preview}
-        onClick={() => preview && onContinue(preview)}
+        disabled={!preview || !consent}
+        onClick={() => preview && consent && onContinue(preview, consent)}
         className="rounded-full bg-[var(--color-primary)] px-8 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-40 enabled:hover:opacity-90"
       >
         Continue
       </button>
-
-      <p className="max-w-xs text-xs text-zinc-400">
-        Your photo is private, used only to generate your preview and
-        auto-deleted within 24 hours unless you save it.
-      </p>
     </div>
   );
 }

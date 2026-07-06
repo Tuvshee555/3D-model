@@ -10,12 +10,14 @@ import { ResultStep } from "@/components/ResultStep";
 type WizardState = {
   step: StepKey;
   personImage: string | null;
+  consent: boolean;
   selection: Selection | null;
 };
 
 const initialState: WizardState = {
   step: "upload",
   personImage: null,
+  consent: false,
   selection: null,
 };
 
@@ -41,8 +43,13 @@ export function Wizard({
       <main className="flex w-full flex-1 flex-col items-center justify-center">
         {state.step === "upload" && (
           <UploadStep
-            onContinue={(photo) =>
-              setState({ step: "catalog", personImage: photo, selection: null })
+            onContinue={(photo, consent) =>
+              setState({
+                step: "catalog",
+                personImage: photo,
+                consent,
+                selection: null,
+              })
             }
           />
         )}
@@ -62,6 +69,7 @@ export function Wizard({
           <ResultStep
             personImage={state.personImage}
             selection={state.selection}
+            consent={state.consent}
             onTryAnother={() => setState((s) => ({ ...s, step: "catalog" }))}
             onStartOver={() => setState(initialState)}
           />

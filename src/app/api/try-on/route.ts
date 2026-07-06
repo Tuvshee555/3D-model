@@ -8,6 +8,7 @@ import {
   countRecentTryOns,
 } from "@/lib/db";
 import { runTryOn } from "@/lib/tryon";
+import { moderateImage } from "@/lib/moderation";
 import { uploadImageDetailed } from "@/lib/cloudinary";
 import { getCurrentUser, getOrCreateAnonSession } from "@/lib/auth";
 import {
@@ -32,6 +33,8 @@ type TryOnRequestBody = {
   garmentId?: string;
   // Wardrobe-import path: shopper's own item (not in any catalog).
   customGarment?: { description?: string; photo?: string };
+  // Explicit consent captured at the upload step (Bible §1.1).
+  consent?: boolean;
 };
 
 export async function POST(request: NextRequest) {
@@ -42,7 +45,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { personImage, garmentId, customGarment } = body;
+  const { personImage, garmentId, customGarment, consent } = body;
+
+  // Explicit consent is required before we process anyone's photo (Bible §1.1).
+  if (consent !== true) {
+    return NextResponse.json(
+      { error: "Consent is required to generate a try-on." },
+      { status: 400 }
+    );
+  }
 
   if (!personImage || !personImage.startsWith("data:image/")) {
     return NextResponse.json(
@@ -142,6 +153,18 @@ export async function POST(request: NextRequest) {
         { status: 429 }
       );
     }
+  }
+
+  // Moderation guard: screen the photo before spending an AI call (Bible §1.1).
+  const moderation = await moderateImage(personImage);
+  if (moderation.flagged) {
+    return NextResponse.json(
+      {
+        error:
+          "This image can't be processed. Please use a clear, appropriate photo of yourself.",
+      },
+      { status: 400 }
+    );
   }
 
   try {

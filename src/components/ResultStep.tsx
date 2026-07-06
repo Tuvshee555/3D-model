@@ -10,6 +10,7 @@ import { track } from "@/lib/analytics";
 type Props = {
   personImage: string;
   selection: Selection;
+  consent: boolean;
   onTryAnother: () => void;
   onStartOver: () => void;
 };
@@ -25,21 +26,28 @@ function selectionName(selection: Selection): string {
     : selection.name;
 }
 
-function requestBody(personImage: string, selection: Selection) {
-  return selection.kind === "catalog"
-    ? { personImage, garmentId: selection.garment.id }
-    : {
-        personImage,
-        customGarment: {
-          description: selection.description,
-          photo: selection.photo,
-        },
-      };
+function requestBody(
+  personImage: string,
+  selection: Selection,
+  consent: boolean
+) {
+  const base =
+    selection.kind === "catalog"
+      ? { personImage, garmentId: selection.garment.id }
+      : {
+          personImage,
+          customGarment: {
+            description: selection.description,
+            photo: selection.photo,
+          },
+        };
+  return { ...base, consent };
 }
 
 export function ResultStep({
   personImage,
   selection,
+  consent,
   onTryAnother,
   onStartOver,
 }: Props) {
@@ -54,7 +62,7 @@ export function ResultStep({
     fetch("/api/try-on", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody(personImage, selection)),
+      body: JSON.stringify(requestBody(personImage, selection, consent)),
     })
       .then(async (res) => {
         const body = await res.json();
