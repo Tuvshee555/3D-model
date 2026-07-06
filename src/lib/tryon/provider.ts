@@ -2,7 +2,7 @@
 // TryOnProvider so we can swap in a dedicated identity-preserving VTON model
 // (fal.ai / Replicate) or a fine-tuned model later WITHOUT touching callers.
 
-export type GenerationKind = "try_on" | "avatar";
+export type GenerationKind = "try_on";
 export type GenerationOutcome = "success" | "error";
 
 export type TryOnInput = {
@@ -12,11 +12,6 @@ export type TryOnInput = {
   garmentDescription: string;
   /** The garment reference image (data URL or remote URL). Null = text-only. */
   garmentPhoto?: string | null;
-};
-
-export type AvatarInput = {
-  /** Description of the avatar base body to generate. */
-  description: string;
 };
 
 export type ProviderResult = {
@@ -32,5 +27,4 @@ export interface TryOnProvider {
   /** Provider name, e.g. "openai" — recorded in telemetry. */
   readonly name: string;
   tryOn(input: TryOnInput): Promise<ProviderResult>;
-  avatar(input: AvatarInput): Promise<ProviderResult>;
 }

@@ -29,11 +29,11 @@ for and where to get it.
 ## Feature map
 
 - **Onboarding**: email/password + Google login; guest use (anonymous cookie)
-- **Photo or avatar**: upload a photo (camera capture on mobile) or pick from 6
-  avatar presets, with optional body details
+- **Photo capture**: upload a photo (camera capture on mobile) — try before signup
 - **Catalog**: search + category filter; try on your own wardrobe item; per-store
   catalogs with CSV or Shopify import
-- **Try-on**: multi-image edit (real garment photo) or text; "change color" refine
+- **Try-on**: identity-preserving VTON (fal.ai IDM-VTON) with a real garment photo,
+  falling back to gpt-image-1; result cache + cost/latency telemetry per generation
 - **Result actions**: favorite, share (Web Share API), "View details / Buy" link
 - **Gallery**: saved try-ons per account/device, with delete-all
 - **Widget**: `/widget/[slug]` embeddable per store (copy-paste snippet in dashboard)

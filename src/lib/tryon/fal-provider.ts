@@ -100,9 +100,4 @@ export const falProvider: TryOnProvider = {
       await Promise.allSettled(uploaded.map((id) => deleteImage(id)));
     }
   },
-
-  async avatar(): Promise<ProviderResult> {
-    // IDM-VTON is garment-transfer only; avatar bases stay on the image model.
-    throw new Error("fal provider does not support avatar generation");
-  },
 };

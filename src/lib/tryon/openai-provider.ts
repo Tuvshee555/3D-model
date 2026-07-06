@@ -1,13 +1,7 @@
 import OpenAI, { toFile, type Uploadable } from "openai";
-import type {
-  AvatarInput,
-  ProviderResult,
-  TryOnInput,
-  TryOnProvider,
-} from "./provider";
+import type { ProviderResult, TryOnInput, TryOnProvider } from "./provider";
 
 const MODEL = "gpt-image-1";
-const AVATAR_SIZE = "1024x1536";
 
 let client: OpenAI | null = null;
 
@@ -80,24 +74,5 @@ export const openAIProvider: TryOnProvider = {
       throw new Error("No image returned from the AI provider");
     }
     return { image: `data:image/png;base64,${b64}`, model: MODEL };
-  },
-
-  async avatar(input: AvatarInput): Promise<ProviderResult> {
-    const openai = getClient();
-    const result = await openai.images.generate({
-      model: MODEL,
-      prompt: `A photorealistic full-body photo of ${input.description}. Sharp, well-lit, realistic proportions, standing centered.`,
-      size: AVATAR_SIZE,
-    });
-
-    const b64 = result.data?.[0]?.b64_json;
-    if (!b64) {
-      throw new Error("No image returned from the AI provider");
-    }
-    return {
-      image: `data:image/png;base64,${b64}`,
-      model: MODEL,
-      size: AVATAR_SIZE,
-    };
   },
 };

@@ -10,7 +10,6 @@ import { computeTryOnCacheKey } from "./cache";
 import { openAIProvider } from "./openai-provider";
 import { falProvider, falEnabled } from "./fal-provider";
 import type {
-  AvatarInput,
   GenerationKind,
   GenerationOutcome,
   ProviderResult,
@@ -18,7 +17,7 @@ import type {
   TryOnProvider,
 } from "./provider";
 
-export type { TryOnInput, AvatarInput } from "./provider";
+export type { TryOnInput } from "./provider";
 
 /** Who/what a generation is for — recorded in telemetry, not used for auth. */
 export type GenerationScope = {
@@ -165,44 +164,4 @@ export async function runTryOn(
     }
   }
   throw new Error(lastError);
-}
-
-/**
- * Run an avatar-base generation. Avatars are garment-agnostic, so they always
- * use the image model (fal IDM-VTON is transfer-only). Returns a data URL;
- * avatars are held client-side, not cached or hosted.
- */
-export async function runAvatar(
-  input: AvatarInput,
-  scope: GenerationScope
-): Promise<string> {
-  const provider = openAIProvider;
-  const started = Date.now();
-  try {
-    const result = await provider.avatar(input);
-    await record(
-      "avatar",
-      provider.name,
-      result.model,
-      scope,
-      "success",
-      Date.now() - started,
-      costOf(result),
-      null
-    );
-    return result.image;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Generation failed";
-    await record(
-      "avatar",
-      provider.name,
-      "unknown",
-      scope,
-      "error",
-      Date.now() - started,
-      null,
-      message
-    );
-    throw err;
-  }
 }

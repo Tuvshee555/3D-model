@@ -25,24 +25,16 @@ function selectionName(selection: Selection): string {
     : selection.name;
 }
 
-const COLORS = ["Black", "White", "Red", "Blue", "Green", "Beige"];
-
-function requestBody(
-  personImage: string,
-  selection: Selection,
-  colorOverride: string | null
-) {
-  const base =
-    selection.kind === "catalog"
-      ? { personImage, garmentId: selection.garment.id }
-      : {
-          personImage,
-          customGarment: {
-            description: selection.description,
-            photo: selection.photo,
-          },
-        };
-  return colorOverride ? { ...base, colorOverride } : base;
+function requestBody(personImage: string, selection: Selection) {
+  return selection.kind === "catalog"
+    ? { personImage, garmentId: selection.garment.id }
+    : {
+        personImage,
+        customGarment: {
+          description: selection.description,
+          photo: selection.photo,
+        },
+      };
 }
 
 export function ResultStep({
@@ -53,17 +45,16 @@ export function ResultStep({
 }: Props) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [copied, setCopied] = useState(false);
-  const [color, setColor] = useState<string | null>(null);
   const name = selectionName(selection);
 
   useEffect(() => {
     let cancelled = false;
-    track("try_on_started", { kind: selection.kind, item: name, color });
+    track("try_on_started", { kind: selection.kind, item: name });
 
     fetch("/api/try-on", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody(personImage, selection, color)),
+      body: JSON.stringify(requestBody(personImage, selection)),
     })
       .then(async (res) => {
         const body = await res.json();
@@ -93,13 +84,7 @@ export function ResultStep({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personImage, selection, color]);
-
-  function pickColor(c: string | null) {
-    if (c === color) return;
-    setState({ status: "loading" });
-    setColor(c);
-  }
+  }, [personImage, selection]);
 
   async function handleShare() {
     if (state.status !== "done") return;
@@ -153,35 +138,6 @@ export function ResultStep({
           />
         )}
       </div>
-
-      {(state.status === "done" || color) && (
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="text-xs text-zinc-500">Change color:</span>
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => pickColor(c)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                color === c
-                  ? "border-[var(--color-primary)] text-[var(--color-primary)]"
-                  : "border-zinc-300 text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-          {color && (
-            <button
-              type="button"
-              onClick={() => pickColor(null)}
-              className="rounded-full px-3 py-1 text-xs text-zinc-500 underline-offset-2 hover:underline"
-            >
-              Original
-            </button>
-          )}
-        </div>
-      )}
 
       {state.status === "done" && state.productUrl && (
         <a

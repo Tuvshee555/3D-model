@@ -32,8 +32,6 @@ type TryOnRequestBody = {
   garmentId?: string;
   // Wardrobe-import path: shopper's own item (not in any catalog).
   customGarment?: { description?: string; photo?: string };
-  // "Change color" refine — re-render the same item in another color.
-  colorOverride?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -44,7 +42,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { personImage, garmentId, customGarment, colorOverride } = body;
+  const { personImage, garmentId, customGarment } = body;
 
   if (!personImage || !personImage.startsWith("data:image/")) {
     return NextResponse.json(
@@ -119,11 +117,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Optional "change color" refine — sanitize to letters/spaces to keep it a color word.
-  const color = (colorOverride ?? "").trim().slice(0, 24).replace(/[^a-zA-Z ]/g, "");
-  const finalDescription = color ? `${description}, in ${color}` : description;
-  // When re-coloring, the reference photo would fight the color change, so drop it.
-  const finalReference = color ? null : referencePhoto;
+  const finalDescription = description;
+  const finalReference = referencePhoto;
 
   const user = await getCurrentUser();
   const sessionId = await getOrCreateAnonSession();
