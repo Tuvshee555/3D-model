@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   GARMENT_CATEGORIES,
+  parseSizes,
   type Garment,
   type GarmentCategory,
   type Selection,
@@ -24,26 +25,38 @@ export function CatalogStep({
   onBack,
 }: Props) {
   const [category, setCategory] = useState<GarmentCategory | "all">("all");
+  const [size, setSize] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [showCustom, setShowCustom] = useState(false);
   const [customName, setCustomName] = useState("");
   const [customDesc, setCustomDesc] = useState("");
   const [customPhoto, setCustomPhoto] = useState<string | null>(null);
 
+  // Every distinct size across the catalog, for the size filter dropdown.
+  const sizeOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of garments) {
+      for (const s of parseSizes(g.sizes)) set.add(s);
+    }
+    return Array.from(set);
+  }, [garments]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return garments.filter((g) => {
       if (category !== "all" && g.category !== category) return false;
+      if (size !== "all" && !parseSizes(g.sizes).includes(size)) return false;
       if (
         q &&
         !g.name.toLowerCase().includes(q) &&
         !g.description.toLowerCase().includes(q) &&
-        !g.category.toLowerCase().includes(q)
+        !g.category.toLowerCase().includes(q) &&
+        !(g.brand ?? "").toLowerCase().includes(q)
       )
         return false;
       return true;
     });
-  }, [garments, category, query]);
+  }, [garments, category, size, query]);
 
   function handleCustomPhoto(file: File | undefined) {
     if (!file) return;
@@ -81,7 +94,7 @@ export function CatalogStep({
           placeholder="Search items…"
           className="flex-1 rounded-full border border-zinc-300 bg-transparent px-4 py-2 text-sm outline-none focus:border-[var(--color-primary)] dark:border-zinc-700"
         />
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {CATEGORIES.map((c) => (
             <button
               key={c}
@@ -97,6 +110,21 @@ export function CatalogStep({
             </button>
           ))}
         </div>
+        {sizeOptions.length > 0 && (
+          <select
+            value={size}
+            onChange={(e) => setSize(e.target.value)}
+            aria-label="Filter by size"
+            className="rounded-full border border-zinc-300 bg-transparent px-3 py-1.5 text-xs font-medium outline-none focus:border-[var(--color-primary)] dark:border-zinc-700"
+          >
+            <option value="all">All sizes</option>
+            {sizeOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {allowCustom && (
@@ -191,8 +219,15 @@ export function CatalogStep({
               <span className="w-full text-sm font-medium text-zinc-900 dark:text-zinc-50">
                 {garment.name}
               </span>
-              <span className="w-full text-xs capitalize text-zinc-500 dark:text-zinc-400">
-                {garment.category}
+              <span className="flex w-full items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="capitalize">
+                  {garment.brand ? garment.brand : garment.category}
+                </span>
+                {garment.price != null && (
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                    ${garment.price.toFixed(0)}
+                  </span>
+                )}
               </span>
             </button>
           ))}

@@ -47,6 +47,9 @@ export type CsvGarmentRow = {
   category: string;
   photoUrl: string | null;
   productUrl: string | null;
+  brand: string | null;
+  price: number | null;
+  sizes: string | null;
 };
 
 /**
@@ -64,6 +67,9 @@ export function csvToGarments(rows: string[][]): CsvGarmentRow[] {
   const iCat = idx(["category", "type"]);
   const iPhoto = idx(["photo_url", "image", "image_url", "photo"]);
   const iUrl = idx(["product_url", "url", "link"]);
+  const iBrand = idx(["brand", "designer", "vendor"]);
+  const iPrice = idx(["price", "cost"]);
+  const iSizes = idx(["sizes", "size", "size_options"]);
 
   const valid = new Set([
     "top",
@@ -82,7 +88,11 @@ export function csvToGarments(rows: string[][]): CsvGarmentRow[] {
       if (!valid.has(category)) category = "top";
       const photoUrl = iPhoto >= 0 ? r[iPhoto]?.trim() || null : null;
       const productUrl = iUrl >= 0 ? r[iUrl]?.trim() || null : null;
-      return { name, description, category, photoUrl, productUrl };
+      const brand = iBrand >= 0 ? r[iBrand]?.trim() || null : null;
+      const priceRaw = iPrice >= 0 ? (r[iPrice] ?? "").replace(/[^0-9.]/g, "") : "";
+      const price = priceRaw && Number.isFinite(Number(priceRaw)) ? Number(priceRaw) : null;
+      const sizes = iSizes >= 0 ? r[iSizes]?.trim() || null : null;
+      return { name, description, category, photoUrl, productUrl, brand, price, sizes };
     })
     .filter((g) => g.name.length > 0);
 }

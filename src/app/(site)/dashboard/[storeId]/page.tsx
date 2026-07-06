@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { getStoreById, getGarmentsByStore } from "@/lib/db";
+import {
+  getStoreById,
+  getGarmentsByStore,
+  countStoreTryOnsThisMonth,
+} from "@/lib/db";
 import { deleteGarmentAction } from "@/app/actions/stores";
 import { GarmentForm } from "@/components/GarmentForm";
 import { ImportPanel } from "@/components/ImportPanel";
@@ -23,6 +27,11 @@ export default async function StorePage({
 
   const garments = await getGarmentsByStore(storeId);
   const plan = PLANS[store.plan] ?? PLANS.free;
+  const usedThisMonth = await countStoreTryOnsThisMonth(storeId);
+  const usagePct = Math.min(
+    100,
+    Math.round((usedThisMonth / plan.tryOnsPerMonth) * 100)
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-12">
@@ -51,6 +60,28 @@ export default async function StorePage({
           </Link>
         </div>
       </div>
+
+      <section className="flex flex-col gap-2 rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+        <div className="flex items-baseline justify-between text-sm">
+          <span className="font-medium">Usage this month</span>
+          <span className="text-zinc-500">
+            {usedThisMonth.toLocaleString()} /{" "}
+            {plan.tryOnsPerMonth.toLocaleString()} try-ons
+          </span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div
+            className="h-full rounded-full bg-[var(--color-primary)]"
+            style={{ width: `${usagePct}%` }}
+          />
+        </div>
+        {usedThisMonth >= plan.tryOnsPerMonth && (
+          <p className="text-xs text-red-600">
+            You&apos;ve hit this month&apos;s limit — upgrade to keep generating
+            try-ons.
+          </p>
+        )}
+      </section>
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-medium">
@@ -82,8 +113,13 @@ export default async function StorePage({
                   />
                 )}
                 <span className="text-sm font-medium">{g.name}</span>
-                <span className="text-xs capitalize text-zinc-500">
-                  {g.category}
+                <span className="flex items-center justify-between text-xs text-zinc-500">
+                  <span className="capitalize">{g.category}</span>
+                  {g.price != null && (
+                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                      ${g.price.toFixed(0)}
+                    </span>
+                  )}
                 </span>
                 <form action={deleteGarmentAction}>
                   <input type="hidden" name="storeId" value={storeId} />

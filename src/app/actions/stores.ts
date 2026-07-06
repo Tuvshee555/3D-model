@@ -74,6 +74,11 @@ export async function createGarmentAction(formData: FormData): Promise<void> {
   const photoDataUrl = String(formData.get("photo") ?? "");
   const productUrlRaw = String(formData.get("productUrl") ?? "").trim();
   const productUrl = /^https?:\/\//.test(productUrlRaw) ? productUrlRaw : null;
+  const brand = String(formData.get("brand") ?? "").trim() || null;
+  const priceRaw = String(formData.get("price") ?? "").trim();
+  const price =
+    priceRaw && Number.isFinite(Number(priceRaw)) ? Number(priceRaw) : null;
+  const sizes = String(formData.get("sizes") ?? "").trim() || null;
 
   if (!name || !description) redirect(`/dashboard/${storeId}`);
 
@@ -91,6 +96,9 @@ export async function createGarmentAction(formData: FormData): Promise<void> {
     photoUrl,
     productUrl,
     storeId,
+    brand,
+    price,
+    sizes,
   });
 
   revalidatePath(`/dashboard/${storeId}`);
@@ -131,6 +139,9 @@ export async function importCsvAction(
       photoUrl: r.photoUrl,
       productUrl: r.productUrl,
       storeId,
+      brand: r.brand,
+      price: r.price,
+      sizes: r.sizes,
     }))
   );
 

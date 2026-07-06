@@ -155,7 +155,8 @@ export async function getStoreByStripeCustomer(
 export async function getSampleCatalog(): Promise<Garment[]> {
   const rows = await getSql()`
     SELECT id, name, category, swatch, description,
-           photo_url AS "photoUrl", product_url AS "productUrl", store_id AS "storeId"
+           photo_url AS "photoUrl", product_url AS "productUrl", store_id AS "storeId",
+           brand, price::float AS price, sizes
     FROM garments
     WHERE store_id IS NULL
     ORDER BY name
@@ -166,7 +167,8 @@ export async function getSampleCatalog(): Promise<Garment[]> {
 export async function getGarmentsByStore(storeId: string): Promise<Garment[]> {
   const rows = await getSql()`
     SELECT id, name, category, swatch, description,
-           photo_url AS "photoUrl", product_url AS "productUrl", store_id AS "storeId"
+           photo_url AS "photoUrl", product_url AS "productUrl", store_id AS "storeId",
+           brand, price::float AS price, sizes
     FROM garments
     WHERE store_id = ${storeId}
     ORDER BY created_at DESC
@@ -177,14 +179,15 @@ export async function getGarmentsByStore(storeId: string): Promise<Garment[]> {
 export async function getGarmentById(id: string): Promise<Garment | undefined> {
   const rows = await getSql()`
     SELECT id, name, category, swatch, description,
-           photo_url AS "photoUrl", product_url AS "productUrl", store_id AS "storeId"
+           photo_url AS "photoUrl", product_url AS "productUrl", store_id AS "storeId",
+           brand, price::float AS price, sizes
     FROM garments
     WHERE id = ${id}
   `;
   return rows[0] as Garment | undefined;
 }
 
-export async function createGarment(garment: {
+type GarmentInsert = {
   id: string;
   name: string;
   category: string;
@@ -193,32 +196,30 @@ export async function createGarment(garment: {
   photoUrl: string | null;
   productUrl: string | null;
   storeId: string;
-}): Promise<void> {
+  brand?: string | null;
+  price?: number | null;
+  sizes?: string | null;
+};
+
+export async function createGarment(garment: GarmentInsert): Promise<void> {
   await getSql()`
-    INSERT INTO garments (id, name, category, swatch, description, photo_url, product_url, store_id)
+    INSERT INTO garments (id, name, category, swatch, description, photo_url, product_url, store_id, brand, price, sizes)
     VALUES (${garment.id}, ${garment.name}, ${garment.category}, ${garment.swatch},
-            ${garment.description}, ${garment.photoUrl}, ${garment.productUrl}, ${garment.storeId})
+            ${garment.description}, ${garment.photoUrl}, ${garment.productUrl}, ${garment.storeId},
+            ${garment.brand ?? null}, ${garment.price ?? null}, ${garment.sizes ?? null})
   `;
 }
 
 /** Bulk-insert garments for a store (CSV / Shopify import). Returns count inserted. */
 export async function createGarments(
-  garments: Array<{
-    id: string;
-    name: string;
-    category: string;
-    swatch: string;
-    description: string;
-    photoUrl: string | null;
-    productUrl: string | null;
-    storeId: string;
-  }>
+  garments: Array<GarmentInsert>
 ): Promise<number> {
   let inserted = 0;
   for (const g of garments) {
     await getSql()`
-      INSERT INTO garments (id, name, category, swatch, description, photo_url, product_url, store_id)
-      VALUES (${g.id}, ${g.name}, ${g.category}, ${g.swatch}, ${g.description}, ${g.photoUrl}, ${g.productUrl}, ${g.storeId})
+      INSERT INTO garments (id, name, category, swatch, description, photo_url, product_url, store_id, brand, price, sizes)
+      VALUES (${g.id}, ${g.name}, ${g.category}, ${g.swatch}, ${g.description}, ${g.photoUrl}, ${g.productUrl}, ${g.storeId},
+              ${g.brand ?? null}, ${g.price ?? null}, ${g.sizes ?? null})
     `;
     inserted += 1;
   }

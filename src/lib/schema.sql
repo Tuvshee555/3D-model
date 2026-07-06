@@ -43,6 +43,10 @@ ALTER TABLE garments ADD COLUMN IF NOT EXISTS store_id UUID REFERENCES stores(id
 ALTER TABLE garments ADD COLUMN IF NOT EXISTS photo_url TEXT;
 ALTER TABLE garments ADD COLUMN IF NOT EXISTS product_url TEXT;
 ALTER TABLE garments ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE garments ADD COLUMN IF NOT EXISTS brand TEXT;
+ALTER TABLE garments ADD COLUMN IF NOT EXISTS price NUMERIC;
+-- Comma-separated size options, e.g. 'S,M,L,XL' (kept as text for simple mapping).
+ALTER TABLE garments ADD COLUMN IF NOT EXISTS sizes TEXT;
 
 CREATE INDEX IF NOT EXISTS garments_store_id_idx ON garments (store_id);
 
@@ -128,3 +132,10 @@ INSERT INTO garments (id, name, category, swatch, description) VALUES
   ('necklace-gold', 'Gold Pendant Necklace', 'accessory', '#d4af37', 'a delicate gold pendant necklace'),
   ('watch-silver', 'Steel Watch', 'accessory', '#c0c0c0', 'a stainless-steel wristwatch with a round face, worn on the wrist')
 ON CONFLICT (id) DO NOTHING;
+
+-- Give the demo catalog size options so the "red dress, size L" filter has data.
+UPDATE garments SET sizes = 'S,M,L,XL'
+  WHERE store_id IS NULL AND sizes IS NULL
+    AND category IN ('top', 'bottom', 'dress', 'outerwear');
+UPDATE garments SET sizes = 'One size'
+  WHERE store_id IS NULL AND sizes IS NULL AND category = 'accessory';

@@ -95,6 +95,36 @@ export function GarmentForm({ storeId }: { storeId: string }) {
         />
       </label>
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Brand (optional)</span>
+          <input
+            name="brand"
+            placeholder="e.g. Acme"
+            className="rounded-lg border border-zinc-300 bg-transparent px-3 py-2 outline-none focus:border-[var(--color-primary)] dark:border-zinc-700"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Price (optional)</span>
+          <input
+            name="price"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="49.00"
+            className="rounded-lg border border-zinc-300 bg-transparent px-3 py-2 outline-none focus:border-[var(--color-primary)] dark:border-zinc-700"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Sizes (optional)</span>
+          <input
+            name="sizes"
+            placeholder="S,M,L,XL"
+            className="rounded-lg border border-zinc-300 bg-transparent px-3 py-2 outline-none focus:border-[var(--color-primary)] dark:border-zinc-700"
+          />
+        </label>
+      </div>
+
       <div className="grid items-end gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Swatch color</span>

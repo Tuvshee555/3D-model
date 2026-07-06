@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { AVATARS } from "@/lib/avatars";
 import { CameraIcon } from "@/components/icons";
+import { PhotoCropper } from "@/components/PhotoCropper";
 
 type Props = {
   onContinue: (photoDataUrl: string) => void;
@@ -12,6 +13,7 @@ type Mode = "photo" | "avatar";
 
 export function UploadStep({ onContinue }: Props) {
   const [mode, setMode] = useState<Mode>("photo");
+  const [rawPhoto, setRawPhoto] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [avatarPending, setAvatarPending] = useState<string | null>(null);
@@ -29,8 +31,12 @@ export function UploadStep({ onContinue }: Props) {
       setError("Please choose a photo under 8MB.");
       return;
     }
+    // Load the raw photo into the cropper first, rather than using it as-is.
     const reader = new FileReader();
-    reader.onload = () => setPreview(reader.result as string);
+    reader.onload = () => {
+      setPreview(null);
+      setRawPhoto(reader.result as string);
+    };
     reader.readAsDataURL(file);
   }
 
@@ -91,7 +97,20 @@ export function UploadStep({ onContinue }: Props) {
       </div>
 
       {mode === "photo" ? (
-        <>
+        rawPhoto && !preview ? (
+          <PhotoCropper
+            src={rawPhoto}
+            onCancel={() => {
+              setRawPhoto(null);
+              if (inputRef.current) inputRef.current.value = "";
+            }}
+            onDone={(cropped) => {
+              setPreview(cropped);
+              setRawPhoto(null);
+            }}
+          />
+        ) : (
+          <>
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -136,7 +155,8 @@ export function UploadStep({ onContinue }: Props) {
           >
             Continue
           </button>
-        </>
+          </>
+        )
       ) : (
         <>
           <input

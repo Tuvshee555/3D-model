@@ -22,7 +22,20 @@ export type Garment = {
   photoUrl: string | null;
   productUrl: string | null;
   storeId: string | null;
+  brand: string | null;
+  price: number | null;
+  // Comma-separated size options, e.g. "S,M,L". null = not specified.
+  sizes: string | null;
 };
+
+/** Parse the comma-separated `sizes` field into a clean list. */
+export function parseSizes(sizes: string | null): string[] {
+  if (!sizes) return [];
+  return sizes
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 export type TryOnRecord = {
   id: string;
