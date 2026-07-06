@@ -97,6 +97,20 @@ CREATE INDEX IF NOT EXISTS generations_created_at_idx ON generations (created_at
 CREATE INDEX IF NOT EXISTS generations_store_id_idx ON generations (store_id);
 CREATE INDEX IF NOT EXISTS generations_outcome_idx ON generations (outcome);
 
+-- Generation result cache (Bible §5/§8): a content-hash key → stored result URL,
+-- so identical (provider × person photo × garment) try-ons are served instantly
+-- and bill zero. Provider is part of the key upstream, so cache entries never
+-- collide across providers/models — this table is provider-agnostic.
+CREATE TABLE IF NOT EXISTS generation_cache (
+  cache_key TEXT PRIMARY KEY,
+  result_url TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS generation_cache_created_at_idx ON generation_cache (created_at);
+
 -- Seed the built-in sample catalog (store_id stays NULL). ~50 items across all
 -- five categories so the demo is searchable/filterable out of the box.
 INSERT INTO garments (id, name, category, swatch, description) VALUES

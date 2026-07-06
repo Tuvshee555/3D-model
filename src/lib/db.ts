@@ -296,6 +296,34 @@ export async function insertGeneration(g: {
   `;
 }
 
+/* ---------- Generation cache ---------- */
+
+/** Look up a cached result by content-hash key. Provider is baked into the key. */
+export async function getCachedGeneration(
+  cacheKey: string
+): Promise<{ resultUrl: string; model: string } | undefined> {
+  const rows = await getSql()`
+    SELECT result_url AS "resultUrl", model
+    FROM generation_cache
+    WHERE cache_key = ${cacheKey}
+  `;
+  return rows[0] as { resultUrl: string; model: string } | undefined;
+}
+
+/** Store a result under its content-hash key. No-op if another request won the race. */
+export async function putCachedGeneration(row: {
+  cacheKey: string;
+  resultUrl: string;
+  provider: string;
+  model: string;
+}): Promise<void> {
+  await getSql()`
+    INSERT INTO generation_cache (cache_key, result_url, provider, model)
+    VALUES (${row.cacheKey}, ${row.resultUrl}, ${row.provider}, ${row.model})
+    ON CONFLICT (cache_key) DO NOTHING
+  `;
+}
+
 /* ---------- Try-ons ---------- */
 
 export async function insertTryOn(entry: {

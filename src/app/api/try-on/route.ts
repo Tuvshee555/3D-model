@@ -150,23 +150,23 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const resultDataUrl = await runTryOn(
-      {
-        personPhoto: personImage,
-        garmentDescription: finalDescription,
-        garmentPhoto: finalReference,
-      },
-      {
-        sessionId,
-        userId: user?.id ?? null,
-        storeId,
-        garmentId: resolvedGarmentId,
-      }
-    );
-
-    const [personImageUrl, resultImageUrl] = await Promise.all([
+    // runTryOn owns the result upload + cache; person image is uploaded in
+    // parallel since it doesn't depend on the generation.
+    const [{ resultUrl: resultImageUrl }, personImageUrl] = await Promise.all([
+      runTryOn(
+        {
+          personPhoto: personImage,
+          garmentDescription: finalDescription,
+          garmentPhoto: finalReference,
+        },
+        {
+          sessionId,
+          userId: user?.id ?? null,
+          storeId,
+          garmentId: resolvedGarmentId,
+        }
+      ),
       uploadImage(personImage, "tryon/person"),
-      uploadImage(resultDataUrl, "tryon/result"),
     ]);
 
     const tryOnId = randomUUID();
