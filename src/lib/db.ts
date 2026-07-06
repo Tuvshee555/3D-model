@@ -337,14 +337,43 @@ export async function insertTryOn(entry: {
   garmentName: string;
   garmentCategory: string;
   personImageUrl: string;
+  personImagePublicId: string | null;
   resultImageUrl: string;
 }): Promise<void> {
   await getSql()`
     INSERT INTO try_ons (id, session_id, user_id, store_id, garment_id,
-                         garment_name, garment_category, person_image_url, result_image_url)
+                         garment_name, garment_category, person_image_url,
+                         person_image_public_id, result_image_url)
     VALUES (${entry.id}, ${entry.sessionId}, ${entry.userId}, ${entry.storeId},
             ${entry.garmentId}, ${entry.garmentName}, ${entry.garmentCategory},
-            ${entry.personImageUrl}, ${entry.resultImageUrl})
+            ${entry.personImageUrl}, ${entry.personImagePublicId}, ${entry.resultImageUrl})
+  `;
+}
+
+/**
+ * Unsaved (non-favorite) selfies older than the cutoff that still have a stored
+ * Cloudinary id — the 24h TTL job deletes these (Bible §1.1).
+ */
+export async function getExpiredUnsavedSelfies(
+  beforeIso: string
+): Promise<Array<{ id: string; publicId: string }>> {
+  const rows = await getSql()`
+    SELECT id, person_image_public_id AS "publicId"
+    FROM try_ons
+    WHERE is_favorite = false
+      AND person_image_public_id IS NOT NULL
+      AND created_at < ${beforeIso}
+    LIMIT 500
+  `;
+  return rows as Array<{ id: string; publicId: string }>;
+}
+
+/** Blank a deleted selfie's URL + id after its Cloudinary asset is destroyed. */
+export async function clearSelfie(id: string): Promise<void> {
+  await getSql()`
+    UPDATE try_ons
+    SET person_image_url = '', person_image_public_id = NULL
+    WHERE id = ${id}
   `;
 }
 

@@ -68,6 +68,9 @@ ALTER TABLE try_ons ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAUL
 ALTER TABLE try_ons ALTER COLUMN garment_id DROP NOT NULL;
 ALTER TABLE try_ons ADD COLUMN IF NOT EXISTS garment_name TEXT;
 ALTER TABLE try_ons ADD COLUMN IF NOT EXISTS garment_category TEXT;
+-- Cloudinary public_id of the person selfie, so the 24h TTL job can delete it
+-- (Bible §1.1: unsaved selfies auto-delete within 24h). NULL once deleted/absent.
+ALTER TABLE try_ons ADD COLUMN IF NOT EXISTS person_image_public_id TEXT;
 
 CREATE INDEX IF NOT EXISTS try_ons_session_id_idx ON try_ons (session_id);
 CREATE INDEX IF NOT EXISTS try_ons_user_id_idx ON try_ons (user_id);

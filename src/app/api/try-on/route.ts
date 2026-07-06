@@ -8,7 +8,7 @@ import {
   countRecentTryOns,
 } from "@/lib/db";
 import { runTryOn } from "@/lib/tryon";
-import { uploadImage } from "@/lib/cloudinary";
+import { uploadImageDetailed } from "@/lib/cloudinary";
 import { getCurrentUser, getOrCreateAnonSession } from "@/lib/auth";
 import {
   PLANS,
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
   try {
     // runTryOn owns the result upload + cache; person image is uploaded in
     // parallel since it doesn't depend on the generation.
-    const [{ resultUrl: resultImageUrl }, personImageUrl] = await Promise.all([
+    const [{ resultUrl: resultImageUrl }, person] = await Promise.all([
       runTryOn(
         {
           personPhoto: personImage,
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
           garmentId: resolvedGarmentId,
         }
       ),
-      uploadImage(personImage, "tryon/person"),
+      uploadImageDetailed(personImage, "tryon/person"),
     ]);
 
     const tryOnId = randomUUID();
@@ -178,7 +178,8 @@ export async function POST(request: NextRequest) {
       garmentId: resolvedGarmentId,
       garmentName,
       garmentCategory,
-      personImageUrl,
+      personImageUrl: person.url,
+      personImagePublicId: person.publicId,
       resultImageUrl,
     });
 

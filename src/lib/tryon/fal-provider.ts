@@ -1,4 +1,4 @@
-import { uploadImage } from "@/lib/cloudinary";
+import { uploadImageDetailed, deleteImage } from "@/lib/cloudinary";
 import type { ProviderResult, TryOnInput, TryOnProvider } from "./provider";
 
 // Identity-preserving virtual try-on (Bible §9): IDM-VTON repaints only the
@@ -15,12 +15,18 @@ export function falEnabled(): boolean {
 /**
  * IDM-VTON takes image URLs. A remote URL is passed through; inline data
  * (a base64 data URL) is uploaded to Cloudinary first so fal always receives a
- * fetchable URL regardless of payload size.
+ * fetchable URL regardless of payload size. Any id we upload is pushed to
+ * `uploaded` so the caller can delete these transient selfies afterward.
  */
-async function ensureRemoteUrl(source: string): Promise<string> {
+async function ensureRemoteUrl(
+  source: string,
+  uploaded: string[]
+): Promise<string> {
   if (/^https?:\/\//.test(source)) return source;
   if (source.startsWith("data:")) {
-    return uploadImage(source, "tryon/fal-input");
+    const { url, publicId } = await uploadImageDetailed(source, "tryon/fal-input");
+    uploaded.push(publicId);
+    return url;
   }
   throw new Error("Unsupported image source for the fal provider");
 }
@@ -39,52 +45,60 @@ export const falProvider: TryOnProvider = {
       throw new Error("fal IDM-VTON requires a garment image");
     }
 
-    const [humanUrl, garmentUrl] = await Promise.all([
-      ensureRemoteUrl(input.personPhoto),
-      ensureRemoteUrl(input.garmentPhoto),
-    ]);
+    // Transient selfie uploads to clean up after the call, so fal inputs never
+    // linger in storage (Bible §1.1).
+    const uploaded: string[] = [];
+    try {
+      const [humanUrl, garmentUrl] = await Promise.all([
+        ensureRemoteUrl(input.personPhoto, uploaded),
+        ensureRemoteUrl(input.garmentPhoto, uploaded),
+      ]);
 
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        human_image_url: humanUrl,
-        garment_image_url: garmentUrl,
-        description: input.garmentDescription,
-      }),
-    });
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Key ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          human_image_url: humanUrl,
+          garment_image_url: garmentUrl,
+          description: input.garmentDescription,
+        }),
+      });
 
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`fal.ai error ${res.status}: ${detail.slice(0, 200)}`);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        throw new Error(`fal.ai error ${res.status}: ${detail.slice(0, 200)}`);
+      }
+
+      const json = (await res.json()) as {
+        image?: { url?: string; content_type?: string };
+      };
+      const imageUrl = json.image?.url;
+      if (!imageUrl) {
+        throw new Error("fal.ai returned no image");
+      }
+
+      // Fetch the result and return it as a data URL to match the provider
+      // contract (callers upload/host it downstream).
+      const imgRes = await fetch(imageUrl);
+      if (!imgRes.ok) {
+        throw new Error(`Failed to fetch fal result image (${imgRes.status})`);
+      }
+      const mime =
+        json.image?.content_type ??
+        imgRes.headers.get("content-type") ??
+        "image/png";
+      const buffer = Buffer.from(await imgRes.arrayBuffer());
+      return {
+        image: `data:${mime};base64,${buffer.toString("base64")}`,
+        model: MODEL,
+      };
+    } finally {
+      // Best-effort cleanup of transient selfie inputs.
+      await Promise.allSettled(uploaded.map((id) => deleteImage(id)));
     }
-
-    const json = (await res.json()) as {
-      image?: { url?: string; content_type?: string };
-    };
-    const imageUrl = json.image?.url;
-    if (!imageUrl) {
-      throw new Error("fal.ai returned no image");
-    }
-
-    // Fetch the result and return it as a data URL to match the provider
-    // contract (callers upload/host it downstream).
-    const imgRes = await fetch(imageUrl);
-    if (!imgRes.ok) {
-      throw new Error(`Failed to fetch fal result image (${imgRes.status})`);
-    }
-    const mime =
-      json.image?.content_type ??
-      imgRes.headers.get("content-type") ??
-      "image/png";
-    const buffer = Buffer.from(await imgRes.arrayBuffer());
-    return {
-      image: `data:${mime};base64,${buffer.toString("base64")}`,
-      model: MODEL,
-    };
   },
 
   async avatar(): Promise<ProviderResult> {
