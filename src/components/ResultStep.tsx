@@ -20,6 +20,14 @@ type State =
   | { status: "error"; message: string }
   | { status: "done"; image: string; tryOnId: string; productUrl: string | null };
 
+// Staged status copy — a beat of anticipation while the model works (Bible §10).
+const STAGES = [
+  "Reading your photo…",
+  "Fitting the garment…",
+  "Matching the light…",
+  "Adding the finishing touches…",
+];
+
 function selectionName(selection: Selection): string {
   return selection.kind === "catalog"
     ? selection.garment.name
@@ -44,6 +52,16 @@ function requestBody(
   return { ...base, consent };
 }
 
+// Turn a raw API error into human copy. Actionable messages (limits, consent)
+// are shown as-is; anything else gets a friendly, non-technical line.
+function friendlyError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("limit") || m.includes("reached")) return message;
+  if (m.includes("consent")) return message;
+  if (m.includes("too large")) return "That photo is a bit large — try one under 15 MB.";
+  return "We couldn't create your preview this time. Please try again.";
+}
+
 export function ResultStep({
   personImage,
   selection,
@@ -53,6 +71,9 @@ export function ResultStep({
 }: Props) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [copied, setCopied] = useState(false);
+  const [stage, setStage] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const name = selectionName(selection);
 
   useEffect(() => {
@@ -85,14 +106,33 @@ export function ResultStep({
         }
       })
       .catch((err: Error) => {
-        if (!cancelled) setState({ status: "error", message: err.message });
+        if (!cancelled)
+          setState({ status: "error", message: friendlyError(err.message) });
       });
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personImage, selection]);
+  }, [personImage, selection, attempt]);
+
+  // Advance the staged status copy while loading. Stage is reset to 0 on mount
+  // (initial state) and in retry(), so no synchronous setState is needed here.
+  useEffect(() => {
+    if (state.status !== "loading") return;
+    const id = setInterval(
+      () => setStage((s) => Math.min(s + 1, STAGES.length - 1)),
+      3500
+    );
+    return () => clearInterval(id);
+  }, [state.status, attempt]);
+
+  function retry() {
+    setStage(0);
+    setRevealed(false);
+    setState({ status: "loading" });
+    setAttempt((a) => a + 1);
+  }
 
   async function handleShare() {
     if (state.status !== "done") return;
@@ -124,17 +164,31 @@ export function ResultStep({
         </p>
       </div>
 
-      <div className="flex h-96 w-full items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex h-96 w-full items-center justify-center overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
         {state.status === "loading" && (
-          <div className="flex flex-col items-center gap-3 text-zinc-500">
+          <div className="flex w-full flex-col items-center gap-4 px-8 text-zinc-500">
             <span className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-[var(--color-primary)]" />
-            <span className="text-sm">Rendering your look…</span>
+            <span className="text-sm font-medium">{STAGES[stage]}</span>
+            <div className="h-1 w-40 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+              <div
+                className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-700 ease-out"
+                style={{ width: `${((stage + 1) / STAGES.length) * 100}%` }}
+              />
+            </div>
           </div>
         )}
         {state.status === "error" && (
-          <div className="flex flex-col items-center gap-2 px-6 text-red-600">
-            <span className="text-sm">Couldn&apos;t generate a preview.</span>
-            <span className="text-xs text-red-500">{state.message}</span>
+          <div className="flex flex-col items-center gap-3 px-6 text-center">
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              {state.message}
+            </span>
+            <button
+              type="button"
+              onClick={retry}
+              className="rounded-full border border-zinc-300 px-5 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              Try again
+            </button>
           </div>
         )}
         {state.status === "done" && (
@@ -142,7 +196,12 @@ export function ResultStep({
           <img
             src={state.image}
             alt={`Preview wearing ${name}`}
-            className="h-full w-full rounded-2xl object-cover"
+            onLoad={() => setRevealed(true)}
+            className={`h-full w-full rounded-2xl object-cover transition-all duration-700 ease-out ${
+              revealed
+                ? "scale-100 opacity-100 blur-0"
+                : "scale-105 opacity-0 blur-xl"
+            }`}
           />
         )}
       </div>

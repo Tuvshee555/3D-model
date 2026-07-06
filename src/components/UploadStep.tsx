@@ -45,7 +45,7 @@ export function UploadStep({ onContinue }: Props) {
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="flex h-64 w-56 flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-zinc-500 transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400"
+        className="relative flex h-64 w-56 flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-zinc-500 transition-colors hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400"
       >
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -56,9 +56,24 @@ export function UploadStep({ onContinue }: Props) {
           />
         ) : (
           <>
-            <CameraIcon className="text-4xl" />
-            <span className="text-sm font-medium">Tap to upload a photo</span>
-            <span className="text-xs text-zinc-400">JPG or PNG, under 8MB</span>
+            {/* Framing guide — a faint full-body silhouette encouraging a
+                centered, full-body shot (guided capture, Bible §6). */}
+            <svg
+              viewBox="0 0 100 160"
+              aria-hidden
+              fill="currentColor"
+              className="pointer-events-none absolute inset-y-4 left-1/2 h-[calc(100%-2rem)] w-auto -translate-x-1/2 text-zinc-300 opacity-40 dark:text-zinc-700"
+            >
+              <circle cx="50" cy="22" r="14" />
+              <path d="M50 40c-16 0-26 10-28 30l-4 46c-.4 5 3 8 7 8 4 0 6-3 6-7l4-38h2l-3 66c-.3 6 4 9 8 9s7-3 7-9l1-40h2l1 40c0 6 3 9 7 9s8-3 8-9l-3-66h2l4 38c0 4 2 7 6 7 4 0 7-3 7-8l-4-46c-2-20-12-30-28-30z" />
+            </svg>
+            <CameraIcon className="relative text-4xl" />
+            <span className="relative text-sm font-medium">
+              Tap to upload a photo
+            </span>
+            <span className="relative text-xs text-zinc-400">
+              Full body, centered — JPG/PNG under 8MB
+            </span>
           </>
         )}
       </button>
